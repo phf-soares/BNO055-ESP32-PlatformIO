@@ -10,6 +10,8 @@ bool interrupt;
 
 Adafruit_BNO055 bno = Adafruit_BNO055();
 imu::Vector<3> acc;
+unsigned long lastMillis = 0;
+unsigned long sampleCount = 0;
 
 void setup(void)
 {
@@ -35,19 +37,19 @@ void loop(void)
 {
   if (interrupt) {
     acc = bno.getVector(Adafruit_BNO055::VECTOR_ACCELEROMETER);
-    /* Display the floating point data */
-    Serial.print("-20.0,"); //set lower scale
-    Serial.print(acc.x());  //x acceleration
-    Serial.print(",");
-    Serial.print(acc.y()); //y accel
-    Serial.print(",");
-    Serial.print(acc.z()); //z accel
-    Serial.println(",20.0"); //set upper scale
+    sampleCount++;
+    Serial.printf("-20,%.2f,%.2f,%.2f,20\n", acc.x(), acc.y(), acc.z());
   }
   else
   {
     bno.resetInterrupts();
     interrupt = false;
+  }
+  if (millis() - lastMillis >= 1000) {
+    Serial.print("Samples per second: ");
+    Serial.println(sampleCount);
+    sampleCount = 0;
+    lastMillis = millis();
   }
 }
 
