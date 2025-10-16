@@ -3,13 +3,13 @@
 #include "Adafruit_BNO055.h" 
 
 const uint8_t INTERRUPT_PIN = 2;
-const uint32_t BAUD_RATE = 1500000;
+const uint32_t BAUD_RATE = 1600000;
 
 void interrupt_callback(void);
 bool interrupt;
 
 Adafruit_BNO055 bno = Adafruit_BNO055();
-
+imu::Vector<3> acc;
 
 void setup(void)
 {
@@ -34,7 +34,7 @@ void setup(void)
 void loop(void)
 {
   if (interrupt) {
-    imu::Vector<3> acc = bno.getVector(Adafruit_BNO055::VECTOR_ACCELEROMETER);
+    acc = bno.getVector(Adafruit_BNO055::VECTOR_ACCELEROMETER);
     /* Display the floating point data */
     Serial.print("-20.0,"); //set lower scale
     Serial.print(acc.x());  //x acceleration
