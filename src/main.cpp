@@ -34,15 +34,8 @@ void setup(void)
 void loop(void)
 {
   if (interrupt) {
-    acc = bno.getVector(Adafruit_BNO055::VECTOR_ACCELEROMETER);
-    /* Display the floating point data */
-    Serial.print("-20.0,"); //set lower scale
-    Serial.print(acc.x());  //x acceleration
-    Serial.print(",");
-    Serial.print(acc.y()); //y accel
-    Serial.print(",");
-    Serial.print(acc.z()); //z accel
-    Serial.println(",20.0"); //set upper scale
+    acc = bno.getVector(Adafruit_BNO055::VECTOR_ACCELEROMETER);    
+    Serial.printf("%.2f,%.2f,%.2f\n", acc.x(), acc.y(), acc.z());
   }
   else
   {
