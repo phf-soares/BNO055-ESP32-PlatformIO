@@ -9,4 +9,4 @@ PlatformIO terminal:
 
 flags:
 --no filter: plota também o sinal original
---fft: plota gráficos da FFT do sinal filtrado
+--fft: plota gráficos da FFT do sinal original
