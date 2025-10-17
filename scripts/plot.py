@@ -168,7 +168,7 @@ plt.show()
 # === PARÂMETROS DE LINHA DE COMANDO ===
 parser = argparse.ArgumentParser(description="Análise de dados do BNO055")
 parser.add_argument("--fft", action="store_true", help="Executa FFT do arquivo CSV")
-parser.add_argument("--nofilter", action="store_true", help="Apenas plota o arquivo CSV")
+parser.add_argument("--nofilter", action="store_true", help="Sinal original do arquivo CSV")
 args = parser.parse_args()
 
 if args.fft:
