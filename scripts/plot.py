@@ -1,17 +1,45 @@
-import serial
-import time
+import os
 import csv
+import time
+import json
+import serial
+import subprocess
 import numpy as np
 import matplotlib.pyplot as plt
-import os
-from datetime import datetime
 import pandas as pd # pyright: ignore[reportMissingModuleSource]
-import matplotlib.pyplot as plt
+from datetime import datetime
 from scipy.signal import butter, filtfilt # pyright: ignore[reportMissingImports]
 from scipy.fft import rfft, rfftfreq # pyright: ignore[reportMissingImports]
 
+# === DETECTAR PORTA SERIAL ===
+def get_pio_serial_port():
+    """Tenta detectar automaticamente a porta serial usada pelo PlatformIO."""
+    try:
+        result = subprocess.run(
+            ["pio", "device", "list", "--json-output"],
+            capture_output=True, text=True, check=True
+        )
+        devices = json.loads(result.stdout)
+        for dev in devices:
+            if "port" in dev and ("usb" in dev["port"].lower() or "COM" in dev["port"].upper()):
+                return dev["port"]
+    except Exception as e:
+        print(f"⚠️ Erro ao detectar porta do PlatformIO: {e}")
+    return None
+
+def detect_serial_port():
+    port = get_pio_serial_port()
+    if port:
+        return port
+    else:
+        import serial.tools.list_ports
+        ports = list(serial.tools.list_ports.comports())
+        if ports:
+            return ports[0].device
+    return None
+
 # === CONFIGURAÇÕES ===
-PORT = "COM7"           # Porta serial do ESP32
+PORT = detect_serial_port() or "COM3"           # Porta serial do ESP32
 BAUD = 1600000          # Baud rate configurado no ESP32
 DURATION = 10           # Tempo de coleta (segundos)
 
