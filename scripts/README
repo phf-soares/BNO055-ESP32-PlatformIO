@@ -3,7 +3,6 @@ This directory is intended for other aux scripts.
 
 PLOT.PY - 
 Dependências: pip install pyserial matplotlib numpy PyQt5no pandas scipy no PlatformIO terminal
-C:\CAMINHO\.platformio\penv\Scripts\python.exe -m pip install tk
 Execução: plot deve ser executado depois de upar no ESP32
-no diretório da pasta:
+ PlatformIO terminal
   python scripts/plot.py
