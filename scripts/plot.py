@@ -12,8 +12,6 @@ BAUD = 1600000          # Baud rate configurado no ESP32
 DURATION = 30           # Tempo de coleta (segundos)
 DATA_DIR = "scripts/data"
 CSV_FILENAME = os.path.join(DATA_DIR, "bno055_data.csv")
-SVG_FILENAME = os.path.join(DATA_DIR, "bno055_plot.svg")
-PNG_FILENAME = os.path.join(DATA_DIR, "bno055_plot.png")
 
 # === GARANTE QUE A PASTA EXISTA ===
 os.makedirs(DATA_DIR, exist_ok=True)
