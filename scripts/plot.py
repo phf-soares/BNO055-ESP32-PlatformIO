@@ -1,10 +1,12 @@
 import os
+import re
 import csv
 import time
 import json
 import serial
 import argparse
 import subprocess
+import configparser
 import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd # pyright: ignore[reportMissingModuleSource]
@@ -12,7 +14,7 @@ from datetime import datetime
 from scipy.signal import butter, filtfilt # pyright: ignore[reportMissingImports]
 from scipy.fft import rfft, rfftfreq # pyright: ignore[reportMissingImports]
 
-# === DETECTAR PORTA SERIAL ===
+# === DETECTAR PORTA SERIAL, BAUD E DURAÇÃO DE COLETA ===
 def get_pio_serial_port():
     """Tenta detectar automaticamente a porta serial usada pelo PlatformIO."""
     try:
@@ -39,10 +41,32 @@ def detect_serial_port():
             return ports[0].device
     return None
 
+def read_pio_ini_value(key, default=None):
+    """Lê automaticamente um valor do platformio.ini (sem precisar do nome do ambiente)."""
+    ini_path = os.path.join(os.path.dirname(__file__), "..", "platformio.ini")
+
+    config = configparser.ConfigParser()
+    config.read(ini_path)
+
+    # encontra a primeira seção [env:...]
+    env_section = None
+    for section in config.sections():
+        if re.match(r"env:", section):
+            env_section = section
+            break
+
+    # tenta ler o valor na seção encontrada
+    if env_section and key in config[env_section]:
+        return config[env_section][key].strip()
+    elif "platformio" in config and key in config["platformio"]:
+        return config["platformio"][key].strip()
+
+    return default
+
 # === CONFIGURAÇÕES ===
 PORT = detect_serial_port() or "COM3"           # Porta serial do ESP32
-BAUD = 1600000          # Baud rate configurado no ESP32
-DURATION = 10           # Tempo de coleta (segundos)
+BAUD = int(read_pio_ini_value("monitor_speed", 1600000))                  # Baud rate configurado no ESP32
+DURATION = float(read_pio_ini_value("custom_data_duration_s", 10))                 # Tempo de coleta (segundos)
 
 # === PASTAS E NOMES DE SAÍDA ===
 os.makedirs("scripts/data", exist_ok=True)
@@ -194,24 +218,24 @@ if args.fft:
     print(f"🔍 Frequência dominante: {f_peak:.2f} Hz (amplitude = {amp_norm_peak:.2f})")
 
 if args.nofilter:
-    fig, axs = plt.subplots(3, 1, figsize=(10, 7), sharex=True)
-    fig.suptitle("BNO055 - Aceleração por Eixo", fontsize=14, fontweight='bold')
+    fig2, axs2 = plt.subplots(3, 1, figsize=(10, 7), sharex=True)
+    fig2.suptitle("BNO055 - Aceleração por Eixo Sem Pós Filtro", fontsize=14, fontweight='bold')
 
     # Eixo X
-    axs[0].plot(t, ax, color='r')
-    axs[0].set_ylabel("A_x (m/s²)")
-    axs[0].grid(True)
+    axs2[0].plot(t, ax, color='r')
+    axs2[0].set_ylabel("A_x (m/s²)")
+    axs2[0].grid(True)
 
     # Eixo Y
-    axs[1].plot(t, ay, color='g')
-    axs[1].set_ylabel("A_y (m/s²)")
-    axs[1].grid(True)
+    axs2[1].plot(t, ay, color='g')
+    axs2[1].set_ylabel("A_y (m/s²)")
+    axs2[1].grid(True)
 
     # Eixo Z
-    axs[2].plot(t, az, color='b')
-    axs[2].set_ylabel("A_z (m/s²)")
-    axs[2].set_xlabel("Tempo (s)")
-    axs[2].grid(True)
+    axs2[2].plot(t, az, color='b')
+    axs2[2].set_ylabel("A_z (m/s²)")
+    axs2[2].set_xlabel("Tempo (s)")
+    axs2[2].grid(True)
 
     plt.tight_layout(rect=[0, 0, 1, 0.97])  # espaço pro título
     plt.show()

@@ -1,9 +1,14 @@
 #include <Wire.h>
 #include "Adafruit_Sensor.h"
-#include "Adafruit_BNO055.h" 
+#include "Adafruit_BNO055.h"
+
+#define BNO055_ACCELRANGE_2G  0x00
+#define BNO055_ACCELRANGE_4G  0x01
+#define BNO055_ACCELRANGE_8G  0x02
+#define BNO055_ACCELRANGE_16G 0x03
+#define BAUD_RATE 1600000
 
 const uint8_t INTERRUPT_PIN = 2;
-const uint32_t BAUD_RATE = 1600000;
 
 void interrupt_callback(void);
 volatile bool interrupt;
@@ -53,7 +58,7 @@ void setup(void)
     Serial.print("Ooops, no BNO055 detected ... Check your wiring or I2C ADDR!");
     while(1);
   }
-  if(!bno.setAccRange( bno.BNO055_ACC_CONFIG_2G ))
+  if(!bno.setAccRange( ACC_RANGE ))
   {
     Serial.print("Ooops, changing Acc range seems to be refused!");    
   }      
