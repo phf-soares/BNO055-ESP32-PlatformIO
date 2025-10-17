@@ -192,3 +192,26 @@ if args.fft:
     plt.show()
 
     print(f"🔍 Frequência dominante: {f_peak:.2f} Hz (amplitude = {amp_norm_peak:.2f})")
+
+if args.nofilter:
+    fig, axs = plt.subplots(3, 1, figsize=(10, 7), sharex=True)
+    fig.suptitle("BNO055 - Aceleração por Eixo", fontsize=14, fontweight='bold')
+
+    # Eixo X
+    axs[0].plot(t, ax, color='r')
+    axs[0].set_ylabel("A_x (m/s²)")
+    axs[0].grid(True)
+
+    # Eixo Y
+    axs[1].plot(t, ay, color='g')
+    axs[1].set_ylabel("A_y (m/s²)")
+    axs[1].grid(True)
+
+    # Eixo Z
+    axs[2].plot(t, az, color='b')
+    axs[2].set_ylabel("A_z (m/s²)")
+    axs[2].set_xlabel("Tempo (s)")
+    axs[2].grid(True)
+
+    plt.tight_layout(rect=[0, 0, 1, 0.97])  # espaço pro título
+    plt.show()
