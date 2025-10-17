@@ -6,7 +6,7 @@ const uint8_t INTERRUPT_PIN = 2;
 const uint32_t BAUD_RATE = 1600000;
 
 void interrupt_callback(void);
-bool interrupt;
+volatile bool interrupt;
 
 Adafruit_BNO055 bno = Adafruit_BNO055();
 imu::Vector<3> acc;

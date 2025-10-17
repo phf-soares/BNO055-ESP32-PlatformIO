@@ -4,17 +4,18 @@ import csv
 import numpy as np
 import matplotlib.pyplot as plt
 import os
+from datetime import datetime
 import pandas as pd # pyright: ignore[reportMissingModuleSource]
 
 # === CONFIGURAÇÕES ===
 PORT = "COM7"           # Porta serial do ESP32
 BAUD = 1600000          # Baud rate configurado no ESP32
-DURATION = 30           # Tempo de coleta (segundos)
-DATA_DIR = "scripts/data"
-CSV_FILENAME = os.path.join(DATA_DIR, "bno055_data.csv")
+DURATION = 10           # Tempo de coleta (segundos)
 
-# === GARANTE QUE A PASTA EXISTA ===
-os.makedirs(DATA_DIR, exist_ok=True)
+# === PASTAS E NOMES DE SAÍDA ===
+os.makedirs("scripts/data", exist_ok=True)
+timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+CSV_FILENAME = f"scripts/data/bno055_data_{timestamp}.csv"
 
 # === ABRIR SERIAL ===
 ser = serial.Serial(PORT, BAUD, timeout=0.02)
@@ -54,9 +55,6 @@ print(f"💾 Dados salvos em '{CSV_FILENAME}'")
 duration_real = data[-1][0] - data[0][0] if len(data) > 1 else 0
 sample_rate = len(data) / duration_real if duration_real > 0 else 0
 print(f"📊 Taxa média de amostragem: {sample_rate:.1f} Hz")
-
-# === CONFIGURAÇÕES ===
-CSV_FILENAME = "scripts/data/bno055_data.csv"
 
 # === LER CSV ===
 data = pd.read_csv(CSV_FILENAME)
