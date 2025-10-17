@@ -3,6 +3,7 @@ import csv
 import time
 import json
 import serial
+import argparse
 import subprocess
 import numpy as np
 import matplotlib.pyplot as plt
@@ -101,13 +102,6 @@ fs = 1 / np.mean(np.diff(t))
 yf = np.abs(rfft(ax))
 xf = rfftfreq(len(ax), 1/fs)
 
-plt.semilogy(xf, yf)
-plt.xlabel("Frequência (Hz)")
-plt.ylabel("|A(f)|")
-plt.grid(True)
-plt.title("Espectro de aceleração")
-plt.show()
-
 # === Remove o pico em 0 Hz (DC) ===
 dc_region = xf < 0.5  # ignora abaixo de 0.5 Hz
 yf_nodc = yf.copy()
@@ -122,22 +116,7 @@ f_peak = xf[idx_peak]
 amp_peak = yf[idx_peak]
 amp_norm_peak = yf_norm[idx_peak]
 
-# === Plotar ===
-plt.figure(figsize=(10, 5))
-plt.plot(xf, yf_norm, label="Espectro normalizado (linear)")
-plt.axvline(f_peak, color='r', linestyle='--', label=f"Pico {f_peak:.2f} Hz")
-plt.xlabel("Frequência (Hz)")
-plt.ylabel("Amplitude normalizada")
-plt.title("Espectro normalizado - eixo X")
-plt.grid(True)
-plt.legend()
-plt.tight_layout()
-plt.show()
-
-print(f"🔍 Frequência dominante: {f_peak:.2f} Hz (amplitude = {amp_norm_peak:.2f})")
-
 # === FILTRAGEM ===
-
 df = pd.read_csv(CSV_FILENAME)
 t = df["tempo_s"].values
 ax = df["ax"].values; ay = df["ay"].values; az = df["az"].values
@@ -185,3 +164,31 @@ axs[2].grid(True)
 
 plt.tight_layout(rect=[0, 0, 1, 0.97])  # espaço pro título
 plt.show()
+
+# === PARÂMETROS DE LINHA DE COMANDO ===
+parser = argparse.ArgumentParser(description="Análise de dados do BNO055")
+parser.add_argument("--fft", action="store_true", help="Executa FFT do arquivo CSV")
+parser.add_argument("--nofilter", action="store_true", help="Apenas plota o arquivo CSV")
+args = parser.parse_args()
+
+if args.fft:
+    # === Plotar ===
+    plt.semilogy(xf, yf)
+    plt.xlabel("Frequência (Hz)")
+    plt.ylabel("|A(f)|")
+    plt.grid(True)
+    plt.title("Espectro de aceleração")
+    plt.show()
+
+    plt.figure(figsize=(10, 5))
+    plt.plot(xf, yf_norm, label="Espectro normalizado (linear)")
+    plt.axvline(f_peak, color='r', linestyle='--', label=f"Pico {f_peak:.2f} Hz")
+    plt.xlabel("Frequência (Hz)")
+    plt.ylabel("Amplitude normalizada")
+    plt.title("Espectro normalizado - eixo X")
+    plt.grid(True)
+    plt.legend()
+    plt.tight_layout()
+    plt.show()
+
+    print(f"🔍 Frequência dominante: {f_peak:.2f} Hz (amplitude = {amp_norm_peak:.2f})")
