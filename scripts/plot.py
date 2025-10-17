@@ -92,6 +92,7 @@ yf_norm = yf_nodc / np.max(yf_nodc)
 idx_peak = np.argmax(yf_norm)
 f_peak = xf[idx_peak]
 amp_peak = yf[idx_peak]
+amp_norm_peak = yf_norm[idx_peak]
 
 # === Plotar ===
 plt.figure(figsize=(10, 5))
@@ -105,7 +106,7 @@ plt.legend()
 plt.tight_layout()
 plt.show()
 
-print(f"🔍 Frequência dominante: {f_peak:.2f} Hz (amplitude = {amp_peak:.2f})")
+print(f"🔍 Frequência dominante: {f_peak:.2f} Hz (amplitude = {amp_norm_peak:.2f})")
 
 # === FILTRAGEM ===
 
