@@ -50,6 +50,7 @@ bool Adafruit_BNO055::begin(adafruit_bno055_opmode_t mode)
 {
   /* Enable I2C */
   Wire.begin();
+  //Wire.setClock(1000000); // Allow for more sample rate but maybe more instability as well
 
   // BNO055 clock stretches for 500us or more!
 #ifdef ESP8266
