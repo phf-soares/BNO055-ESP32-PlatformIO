@@ -11,8 +11,11 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd # pyright: ignore[reportMissingModuleSource]
 from datetime import datetime
-from scipy.signal import butter, filtfilt # pyright: ignore[reportMissingImports]
 from scipy.fft import rfft, rfftfreq # pyright: ignore[reportMissingImports]
+from scipy.signal import butter, filtfilt # pyright: ignore[reportMissingImports]
+from scipy.signal import find_peaks # pyright: ignore[reportMissingImports]
+
+
 
 # === DETECTAR PORTA SERIAL, BAUD E DURAÇÃO DE COLETA ===
 def get_pio_serial_port():
@@ -131,6 +134,10 @@ dc_region = xf < 0.5  # ignora abaixo de 0.5 Hz
 yf_nodc = yf.copy()
 yf_nodc[dc_region] = 0
 
+low_region = xf < 2  # ignora abaixo de 2 Hz
+yf_nolow = yf.copy()
+yf_nolow[low_region] = 0
+
 # === Normalização linear ===
 yf_norm = yf_nodc / np.max(yf_nodc)
 
@@ -140,12 +147,19 @@ f_peak = xf[idx_peak]
 amp_peak = yf[idx_peak]
 amp_norm_peak = yf_norm[idx_peak]
 
+peaks, _ = find_peaks(yf_nolow, height=np.max(yf_nolow)*0.05)  # pega picos >5% do máx
+peak_amps = yf_nolow[peaks]
+top2 = np.argsort(peak_amps)[-2:]
+
+f1, f2 = xf[peaks[top2[-1]]], xf[peaks[top2[-2]]]
+print(f"1º pico: {f1:.2f} Hz, 2º pico: {f2:.2f} Hz")
+
 # === FILTRAGEM ===
 df = pd.read_csv(CSV_FILENAME)
 t = df["tempo_s"].values
 ax = df["ax"].values; ay = df["ay"].values; az = df["az"].values
 
-fc = f_peak*1.2;  # Hz (ajuste conforme seu caso)
+fc = int(read_pio_ini_value("custom_desired_freq_Hz", 105)) 
 wn = fc / (fs/2) # frequência normalizada (para butter)
 
 b, a = butter(N=4, Wn=wn, btype='low')   # ordem 4
