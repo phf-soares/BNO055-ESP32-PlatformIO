@@ -159,7 +159,7 @@ df = pd.read_csv(CSV_FILENAME)
 t = df["tempo_s"].values
 ax = df["ax"].values; ay = df["ay"].values; az = df["az"].values
 
-fc = int(read_pio_ini_value("custom_desired_freq_Hz", 100)) 
+fc = int(read_pio_ini_value("custom_desired_freq_Hz", 105)) 
 wn = fc / (fs/2) # frequência normalizada (para butter)
 
 b, a = butter(N=4, Wn=wn, btype='low')   # ordem 4
