@@ -98,7 +98,8 @@ void bno_read(void)
   filterEMA(bnoState.axf, bnoState.ayf, bnoState.azf, EMA_ALPHA,
             bnoState.axff, bnoState.ayff, bnoState.azff);
 #endif
-  sprintf( bnoState.dataMessage, "%.3f,%.2f,%.2f,%.2f\n" , bnoState.time, bnoState.axff, bnoState.ayff, bnoState.azff);  
+  sprintf( bnoState.dataMessage, "%.3f,%.2f,%.2f,%.2f\n" , bnoState.time, bnoState.axff, bnoState.ayff, bnoState.azff);
+  Serial.printf("%.2f,%.2f,%.2f\n", bnoState.axff, bnoState.ayff, bnoState.azff);  
 }
 
 void sd_setup(void) {
@@ -227,7 +228,7 @@ void writeFile(fs::FS &fs, const char *path, const char *message) {
 }
 
 void appendFile(fs::FS &fs, const char *path, const char *message) {
-  Serial.printf("Appending to file: %s\n", path);
+  //Serial.printf("Appending to file: %s\n", path);
 
   File file = fs.open(path, FILE_APPEND);
   if (!file) {
@@ -235,7 +236,7 @@ void appendFile(fs::FS &fs, const char *path, const char *message) {
     return;
   }
   if (file.print(message)) {
-    Serial.println("Message appended");
+    //Serial.println("Message appended");
   } else {
     Serial.println("Append failed");
   }
