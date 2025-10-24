@@ -35,16 +35,8 @@ void loop(void)
   if (interrupt)
   {
     bno_read();
-    if (!SD.begin()) {
-    Serial.println("⚠️ SD não montado, tentando remontar...");
-    if (!SD.begin()) {
-      Serial.println("❌ Falha ao remontar SD!");
-      return;
-    }
-    }
-    writeFile(SD, "/bno.txt", "Hello ");
-    appendFile(SD, "/bno.txt", "World!\n");
-    readFile(SD, "/bno.txt"); 
+    SD.begin();  
+    appendFile(SD, "/bno.txt", "World!\n");     
   }
   else
   {

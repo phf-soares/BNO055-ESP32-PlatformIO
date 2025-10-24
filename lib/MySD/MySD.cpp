@@ -156,23 +156,17 @@ void testFileIO(fs::FS &fs, const char *path) {
   file.close();
 }
 
-void sd_setup() {
-  #ifdef REASSIGN_PINS
-    SPI.begin(sck, miso, mosi, cs);
-  if (!SD.begin(cs)) {
-  #else
-    if (!SD.begin()) {
-  #endif
+void sd_setup(void) {
+  if (!SD.begin()) {
     Serial.println("Card Mount Failed");
     return;
   }
-  uint8_t cardType = SD.cardType();
 
+  uint8_t cardType = SD.cardType();
   if (cardType == CARD_NONE) {
     Serial.println("No SD card attached");
     return;
   }
-
   Serial.print("SD Card Type: ");
   if (cardType == CARD_MMC) {
     Serial.println("MMC");
@@ -188,4 +182,8 @@ void sd_setup() {
   Serial.printf("SD Card Size: %lluMB\n", cardSize);   
   Serial.printf("Total space: %lluMB\n", SD.totalBytes() / (1024 * 1024));
   Serial.printf("Used space: %lluMB\n", SD.usedBytes() / (1024 * 1024));
+
+  appendFile(SD, "/bno.txt", "INICIO: ");
+  //writeFile(SD, "/bno.txt", "INICIO: ");
+  readFile(SD, "/bno.txt");
 }
