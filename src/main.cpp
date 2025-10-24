@@ -12,9 +12,12 @@ Adafruit_BNO055 bno = Adafruit_BNO055();
 struct BnoState
 {
   imu::Vector<3> acc;
+  uint32_t start_time, count;
+  float time;
   float ax, ay, az;
   float axf, ayf, azf;
   float axff, ayff, azff;
+  char dataMessage[50];
 } bnoState;
 
 void interrupt_callback(void);
@@ -27,7 +30,8 @@ void setup(void)
 {
   Serial.begin(BAUD_RATE);
   bno_setup();
-  sd_setup();  
+  sd_setup();
+  bnoState.start_time = millis();
 }
 
 void loop(void)
@@ -36,7 +40,15 @@ void loop(void)
   {
     bno_read();
     SD.begin();  
-    appendFile(SD, "/bno.txt", "World!\n");     
+    appendFile(SD, "/bno.txt", bnoState.dataMessage);
+    if( millis() - bnoState.start_time >= 10000) {
+      Serial.print( "Start time: ");    Serial.println( bnoState.start_time); 
+      Serial.print( "End time: ");      Serial.println( millis()); 
+      Serial.print( "Total time (s): ");Serial.println( (millis() - bnoState.start_time) / 1000.0); 
+      Serial.print( "Total samples: "); Serial.println( bnoState.count);      
+      Serial.println("end");
+      delay(50000);
+    }     
   }
   else
   {
@@ -72,6 +84,8 @@ void bno_setup(void)
 void bno_read(void)
 {
   bnoState.acc = bno.getVector(Adafruit_BNO055::VECTOR_ACCELEROMETER);
+  bnoState.time = (millis()-bnoState.start_time)/1000.00;
+  bnoState.count++;
   bnoState.ax = bnoState.acc.x();
   bnoState.ay = bnoState.acc.y();
   bnoState.az = bnoState.acc.z();
@@ -88,5 +102,6 @@ void bno_read(void)
   filterEMA(bnoState.axf, bnoState.ayf, bnoState.azf, EMA_ALPHA,
             bnoState.axff, bnoState.ayff, bnoState.azff);
 #endif
-  Serial.printf("%.2f,%.2f,%.2f\n", bnoState.axff, bnoState.ayff, bnoState.azff);
+  //Serial.printf("%.2f,%.2f,%.2f\n", bnoState.axff, bnoState.ayff, bnoState.azff);
+  sprintf( bnoState.dataMessage, "%.3f,%.2f,%.2f,%.2f\n" , bnoState.time, bnoState.axff, bnoState.ayff, bnoState.azff);
 }

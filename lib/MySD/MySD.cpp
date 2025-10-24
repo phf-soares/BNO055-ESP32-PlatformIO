@@ -82,7 +82,7 @@ void writeFile(fs::FS &fs, const char *path, const char *message) {
 }
 
 void appendFile(fs::FS &fs, const char *path, const char *message) {
-  Serial.printf("Appending to file: %s\n", path);
+  //Serial.printf("Appending to file: %s\n", path);
 
   File file = fs.open(path, FILE_APPEND);
   if (!file) {
@@ -90,7 +90,7 @@ void appendFile(fs::FS &fs, const char *path, const char *message) {
     return;
   }
   if (file.print(message)) {
-    Serial.println("Message appended");
+    //Serial.println("Message appended");
   } else {
     Serial.println("Append failed");
   }
@@ -183,7 +183,7 @@ void sd_setup(void) {
   Serial.printf("Total space: %lluMB\n", SD.totalBytes() / (1024 * 1024));
   Serial.printf("Used space: %lluMB\n", SD.usedBytes() / (1024 * 1024));
 
-  appendFile(SD, "/bno.txt", "INICIO: ");
-  //writeFile(SD, "/bno.txt", "INICIO: ");
+  //appendFile(SD, "/bno.txt", "INICIO: ");
+  writeFile(SD, "/bno.txt", "INICIO: ");
   readFile(SD, "/bno.txt");
 }
