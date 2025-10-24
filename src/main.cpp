@@ -4,10 +4,12 @@
 #include "Arduino.h"
 #include "MyBno_filters.h"
 #include "MyBno_config.h"
-#include "MySD.h"
+#include <SD.h>
+#include <esp_sleep.h>
 
 const uint8_t INTERRUPT_PIN = 2; // GPIO do ESP32
 const uint8_t CS_PIN = 5;
+const uint32_t TOTAL_TIME = 5*60*1000;
 #define BUFFER_SIZE 1024
 
 Adafruit_BNO055 bno = Adafruit_BNO055();
@@ -42,11 +44,12 @@ void setup(void)
     Serial.println("Falha ao iniciar SD!");
     while (1);
   }
-  dataFile = SD.open("/bno.txt", FILE_WRITE);
+  dataFile = SD.open("/bno.txt", FILE_APPEND);
   if (!dataFile) {
     Serial.println("Erro ao abrir arquivo no SD!");
     while (1);
   }
+  dataFile.print("INICIO:");
   Serial.println("Inicialização concluída!");
 
   bnoState.start_time = millis();
@@ -72,23 +75,10 @@ void loop(void)
     memcpy(&buffer[bufferIndex], sample.c_str(), len);
     bufferIndex += len;
 
-    if( millis() - bnoState.start_time >= 10000) {
+    if( millis() - bnoState.start_time >= TOTAL_TIME) {
+      dataFile.flush();
       dataFile.close();
-      // Ler arquivo
-      Serial.println("\n--- LENDO /bno.txt ---");
-      File readFile = SD.open("/bno.txt", FILE_READ);
-      if (readFile) {
-        while (readFile.available()) Serial.write(readFile.read());
-        readFile.close();
-      }
-      Serial.println("\n--- FIM ---");
-      
-      Serial.print( "Start time: ");    Serial.println( bnoState.start_time/1000.00); 
-      Serial.print( "End time: ");      Serial.println( bnoState.time); 
-      Serial.print( "Total time (s): ");Serial.println( bnoState.time - bnoState.start_time/1000.00); 
-      Serial.print( "Total samples: "); Serial.println( bnoState.count);      
-      Serial.println("end");
-      delay(50000);
+      esp_deep_sleep_start();     
     }     
   }
   else
