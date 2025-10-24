@@ -207,12 +207,24 @@ void testFileIO(fs::FS &fs, const char *path) {
   file.close();
 }
 
+void sd_setup(void);
+
 void setup() {
   Serial.begin(BAUD_RATE);
+  sd_setup();
 
+}
+
+void loop() {
+  writeFile(SD, "/bno.txt", "Hello ");
+  appendFile(SD, "/bno.txt", "World!\n");
+  readFile(SD, "/bno.txt"); 
+}
+
+void sd_setup() {
   #ifdef REASSIGN_PINS
     SPI.begin(sck, miso, mosi, cs);
-    if (!SD.begin(cs)) {
+  if (!SD.begin(cs)) {
   #else
     if (!SD.begin()) {
   #endif
@@ -241,10 +253,4 @@ void setup() {
   Serial.printf("SD Card Size: %lluMB\n", cardSize);   
   Serial.printf("Total space: %lluMB\n", SD.totalBytes() / (1024 * 1024));
   Serial.printf("Used space: %lluMB\n", SD.usedBytes() / (1024 * 1024));
-}
-
-void loop() {
-  writeFile(SD, "/bno.txt", "Hello ");
-  appendFile(SD, "/bno.txt", "World!\n");
-  readFile(SD, "/bno.txt"); 
 }
