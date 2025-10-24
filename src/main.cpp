@@ -1,150 +1,55 @@
-#include <Wire.h>
-#include "Adafruit_Sensor.h"
-#include "Adafruit_BNO055.h"
-#include "Arduino.h"
-#include "MyBno_filters.h"
-#include "MyBno_config.h"
+/*
+ * pin 1 - not used          |  Micro SD card     |
+ * pin 2 - CS (SS)           |                   /
+ * pin 3 - DI (MOSI)         |                  |__
+ * pin 4 - VDD (3.3V)        |                    |
+ * pin 5 - SCK (SCLK)        | 8 7 6 5 4 3 2 1   /
+ * pin 6 - VSS (GND)         | ▄ ▄ ▄ ▄ ▄ ▄ ▄ ▄  /
+ * pin 7 - DO (MISO)         | ▀ ▀ █ ▀ █ ▀ ▀ ▀ |
+ * pin 8 - not used          |_________________|
+ *                             ║ ║ ║ ║ ║ ║ ║ ║
+ *                     ╔═══════╝ ║ ║ ║ ║ ║ ║ ╚═════════╗
+ *                     ║         ║ ║ ║ ║ ║ ╚══════╗    ║
+ *                     ║   ╔═════╝ ║ ║ ║ ╚═════╗  ║    ║
+ * Connections for     ║   ║   ╔═══╩═║═║═══╗   ║  ║    ║
+ * full-sized          ║   ║   ║   ╔═╝ ║   ║   ║  ║    ║
+ * SD card             ║   ║   ║   ║   ║   ║   ║  ║    ║
+ * Pin name         |  -  DO  VSS SCK VDD VSS DI CS    -  |
+ * SD pin number    |  8   7   6   5   4   3   2   1   9 /
+ *                  |                                  █/
+ *                  |__▍___▊___█___█___█___█___█___█___/
+ *
+ * Note:  The SPI pins can be manually configured by using `SPI.begin(sck, miso, mosi, cs).`
+ *        Alternatively, you can change the CS pin and use the other default settings by using `SD.begin(cs)`.
+ *
+ * +--------------+---------+-------+----------+----------+----------+----------+----------+
+ * | SPI Pin Name | ESP8266 | ESP32 | ESP32‑S2 | ESP32‑S3 | ESP32‑C3 | ESP32‑C6 | ESP32‑H2 |
+ * +==============+=========+=======+==========+==========+==========+==========+==========+
+ * | CS (SS)      | GPIO15  | GPIO5 | GPIO34   | GPIO10   | GPIO7    | GPIO18   | GPIO0    |
+ * +--------------+---------+-------+----------+----------+----------+----------+----------+
+ * | DI (MOSI)    | GPIO13  | GPIO23| GPIO35   | GPIO11   | GPIO6    | GPIO19   | GPIO25   |
+ * +--------------+---------+-------+----------+----------+----------+----------+----------+
+ * | DO (MISO)    | GPIO12  | GPIO19| GPIO37   | GPIO13   | GPIO5    | GPIO20   | GPIO11   |
+ * +--------------+---------+-------+----------+----------+----------+----------+----------+
+ * | SCK (SCLK)   | GPIO14  | GPIO18| GPIO36   | GPIO12   | GPIO4    | GPIO21   | GPIO10   |
+ * +--------------+---------+-------+----------+----------+----------+----------+----------+
+ *
+ * For more info see file README.md in this library or on URL:
+ * https://github.com/espressif/arduino-esp32/tree/master/libraries/SD
+ */
 
 #include "FS.h"
 #include "SD.h"
 #include "SPI.h"
 
-
-const uint8_t INTERRUPT_PIN = 2; // GPIO do ESP32
-
-Adafruit_BNO055 bno = Adafruit_BNO055();
-struct BnoState
-{
-  imu::Vector<3> acc;
-  unsigned long time, start_time;
-  float ax, ay, az;
-  float axf, ayf, azf;
-  float axff, ayff, azff;
-  char dataMessage[50];
-} bnoState;
-
-void interrupt_callback(void);
-volatile bool interrupt;
-
-void bno_setup(void);
-void bno_read(void);
-void sd_setup(void);
-void appendFile(fs::FS &fs, const char *path, const char *message);
-void readFile(fs::FS &fs, const char *path);
-
-void setup(void)
-{
-  Serial.begin(BAUD_RATE);
-  bno_setup();
-  sd_setup();
-  bnoState.start_time = millis();
-}
-
-void loop(void)
-{
-  if (interrupt)
-  {
-    bno_read();
-    appendFile(SD, "/data.txt", bnoState.dataMessage);
-  }
-  else
-  {
-    bno.resetInterrupts();
-    interrupt = false;
-  }
-}
-
-void interrupt_callback(void)
-{
-  interrupt = true;
-}
-
-void bno_setup(void)
-{
-  if (!bno.begin())
-  {
-    Serial.print("Ooops, no BNO055 detected ... Check your wiring or I2C ADDR!");
-    ESP.restart();
-  }
-  if (!bno.setAccRange(ACC_RANGE))
-  {
-    Serial.print("Ooops, changing Acc range seems to be refused!");
-  }
-  interrupt = false;
-  pinMode(INTERRUPT_PIN, INPUT);
-  attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN), interrupt_callback, RISING);
-  bno.enableAnyMotion(0, 0);
-  bno.enableInterruptsOnXYZ(ENABLE, ENABLE, ENABLE);
-  bno.setExtCrystalUse(true);
-}
-
-void bno_read(void)
-{
-  bnoState.acc = bno.getVector(Adafruit_BNO055::VECTOR_ACCELEROMETER);
-  bnoState.time = (millis()-bnoState.start_time)/1000.00;
-  bnoState.ax = bnoState.acc.x();
-  bnoState.ay = bnoState.acc.y();
-  bnoState.az = bnoState.acc.z();
-#if FILTER_ORDER_EMA_FIRST
-  filterEMA(bnoState.ax, bnoState.ay, bnoState.az, EMA_ALPHA,
-            bnoState.axf, bnoState.ayf, bnoState.azf);
-
-  filterMedianN(bnoState.axf, bnoState.ayf, bnoState.azf,
-                bnoState.axff, bnoState.ayff, bnoState.azff);
-#else
-  filterMedianN(bnoState.ax, bnoState.ay, bnoState.az,
-                bnoState.axf, bnoState.ayf, bnoState.azf);
-
-  filterEMA(bnoState.axf, bnoState.ayf, bnoState.azf, EMA_ALPHA,
-            bnoState.axff, bnoState.ayff, bnoState.azff);
-#endif
-  sprintf( bnoState.dataMessage, "%.3f,%.2f,%.2f,%.2f\n" , bnoState.time, bnoState.axff, bnoState.ayff, bnoState.azff);
-  Serial.printf("%.2f,%.2f,%.2f\n", bnoState.axff, bnoState.ayff, bnoState.azff);  
-}
-
-void sd_setup(void) {
-
-#ifdef REASSIGN_PINS
-  SPI.begin(sck, miso, mosi, cs);
-  if (!SD.begin(cs)) {
-#else
-  if (!SD.begin()) {
-#endif
-    Serial.println("Card Mount Failed");
-    return;
-  }
-  uint8_t cardType = SD.cardType();
-
-  if (cardType == CARD_NONE) {
-    Serial.println("No SD card attached");
-    return;
-  }
-
-  Serial.print("SD Card Type: ");
-  if (cardType == CARD_MMC) {
-    Serial.println("MMC");
-  } else if (cardType == CARD_SD) {
-    Serial.println("SDSC");
-  } else if (cardType == CARD_SDHC) {
-    Serial.println("SDHC");
-  } else {
-    Serial.println("UNKNOWN");
-  }
-
-  uint64_t cardSize = SD.cardSize() / (1024 * 1024);
-  Serial.printf("SD Card Size: %lluMB\n", cardSize);  
-  Serial.printf("Total space: %lluMB\n", SD.totalBytes() / (1024 * 1024));
-  Serial.printf("Used space: %lluMB\n", SD.usedBytes() / (1024 * 1024));
-   
-  appendFile(SD, "/data.txt", "Inicio:\n");
-  #ifndef READ_SD_FILE
-    #define READ_SD_FILE 0
-  #endif
-  if (READ_SD_FILE) {readFile(SD, "/data.txt");}  
-  
-}
-
-
+/*
+Uncomment and set up if you want to use custom pins for the SPI communication
+#define REASSIGN_PINS
+int sck = -1;
+int miso = -1;
+int mosi = -1;
+int cs = -1;
+*/
 
 void listDir(fs::FS &fs, const char *dirname, uint8_t levels) {
   Serial.printf("Listing directory: %s\n", dirname);
@@ -228,7 +133,7 @@ void writeFile(fs::FS &fs, const char *path, const char *message) {
 }
 
 void appendFile(fs::FS &fs, const char *path, const char *message) {
-  //Serial.printf("Appending to file: %s\n", path);
+  Serial.printf("Appending to file: %s\n", path);
 
   File file = fs.open(path, FILE_APPEND);
   if (!file) {
@@ -236,7 +141,7 @@ void appendFile(fs::FS &fs, const char *path, const char *message) {
     return;
   }
   if (file.print(message)) {
-    //Serial.println("Message appended");
+    Serial.println("Message appended");
   } else {
     Serial.println("Append failed");
   }
@@ -301,3 +206,54 @@ void testFileIO(fs::FS &fs, const char *path) {
   Serial.printf("%u bytes written for %lu ms\n", 2048 * 512, end);
   file.close();
 }
+
+void setup() {
+  Serial.begin(BAUD_RATE);
+
+#ifdef REASSIGN_PINS
+  SPI.begin(sck, miso, mosi, cs);
+  if (!SD.begin(cs)) {
+#else
+  if (!SD.begin()) {
+#endif
+    Serial.println("Card Mount Failed");
+    return;
+  }
+  uint8_t cardType = SD.cardType();
+
+  if (cardType == CARD_NONE) {
+    Serial.println("No SD card attached");
+    return;
+  }
+
+  Serial.print("SD Card Type: ");
+  if (cardType == CARD_MMC) {
+    Serial.println("MMC");
+  } else if (cardType == CARD_SD) {
+    Serial.println("SDSC");
+  } else if (cardType == CARD_SDHC) {
+    Serial.println("SDHC");
+  } else {
+    Serial.println("UNKNOWN");
+  }
+
+  uint64_t cardSize = SD.cardSize() / (1024 * 1024);
+  Serial.printf("SD Card Size: %lluMB\n", cardSize);
+
+  listDir(SD, "/", 0);
+  createDir(SD, "/mydir");
+  listDir(SD, "/", 0);
+  removeDir(SD, "/mydir");
+  listDir(SD, "/", 2);
+  writeFile(SD, "/hello.txt", "Hello ");
+  appendFile(SD, "/hello.txt", "World!\n");
+  readFile(SD, "/hello.txt");
+  deleteFile(SD, "/foo.txt");
+  renameFile(SD, "/hello.txt", "/foo.txt");
+  readFile(SD, "/foo.txt");
+  testFileIO(SD, "/test.txt");
+  Serial.printf("Total space: %lluMB\n", SD.totalBytes() / (1024 * 1024));
+  Serial.printf("Used space: %lluMB\n", SD.usedBytes() / (1024 * 1024));
+}
+
+void loop() {}
