@@ -1,107 +1,122 @@
-#include <Wire.h>
-#include "Adafruit_Sensor.h"
-#include "Adafruit_BNO055.h"
-#include "Arduino.h"
-#include "MyBno_filters.h"
-#include "MyBno_config.h"
-#include "MySD.h"
+#include <Arduino.h>
+#include <SD.h>
+#include <SPI.h>
 
-const uint8_t INTERRUPT_PIN = 2; // GPIO do ESP32
+// === CONFIGURAÇÕES ===
+#define CS_PIN 5             // Pino CS do módulo SD (ajuste conforme seu hardware)
+#define SAMPLE_PERIOD_MS 3   // 1 ms = 1 kHz
+#define QUEUE_LENGTH 256
+#define LOG_DURATION_MS 10000  // 10 segundos de gravação
 
-Adafruit_BNO055 bno = Adafruit_BNO055();
-struct BnoState
-{
-  imu::Vector<3> acc;
-  uint32_t start_time, count;
-  float time;
-  float ax, ay, az;
-  float axf, ayf, azf;
-  float axff, ayff, azff;
-  char dataMessage[50];
-} bnoState;
+// === VARIÁVEIS GLOBAIS ===
+QueueHandle_t dataQueue;
+File dataFile;
+volatile bool stopLogging = false;
 
-void interrupt_callback(void);
-volatile bool interrupt;
+// Estrutura de dados da amostra
+typedef struct {
+  uint32_t timestamp;
+  int value;
+} Sample_t;
 
-void bno_setup(void);
-void bno_read(void);
+// === TAREFA 1: LEITURA DO SENSOR ===
+void taskSensor(void *pvParameters) {
+  Sample_t sample;
+  TickType_t lastWakeTime = xTaskGetTickCount();
 
-void setup(void)
-{
+  for (;;) {
+    if (stopLogging) break;
+
+    sample.timestamp = millis();
+    sample.value = 12;  // Simula sensor analógico
+
+    // Envia amostra para fila (não bloqueante)
+    xQueueSend(dataQueue, &sample, 0);
+
+    // Mantém a taxa de amostragem exata
+    vTaskDelayUntil(&lastWakeTime, pdMS_TO_TICKS(SAMPLE_PERIOD_MS));
+  }
+
+  Serial.println("taskSensor finalizada.");
+  vTaskDelete(NULL);
+}
+
+// === TAREFA 2: GRAVAÇÃO NO SD ===
+void taskSD(void *pvParameters) {
+  Sample_t received;
+
+  dataFile = SD.open("/dados.csv", FILE_WRITE);
+  if (!dataFile) {
+    Serial.println("Erro ao abrir arquivo para escrita!");
+    vTaskDelete(NULL);
+  }
+
+  dataFile.println("timestamp_ms,valor");
+
+  for (;;) {
+    if (stopLogging && uxQueueMessagesWaiting(dataQueue) == 0) break;
+
+    if (xQueueReceive(dataQueue, &received, pdMS_TO_TICKS(100))) {
+      dataFile.printf("%lu,%d\n", received.timestamp, received.value);
+    }
+  }
+
+  dataFile.flush();
+  dataFile.close();
+  Serial.println("Arquivo fechado. taskSD finalizada.");
+
+  vTaskDelete(NULL);
+}
+
+// === SETUP PRINCIPAL ===
+void setup() {
   Serial.begin(BAUD_RATE);
-  bno_setup();
-  sd_setup();
-  bnoState.start_time = millis();
+  delay(1000);
+  Serial.println("Inicializando...");
+
+  // Inicia SD
+  if (!SD.begin(CS_PIN)) {
+    Serial.println("Falha ao iniciar SD!");
+    while (true);
+  }
+  Serial.println("SD iniciado com sucesso.");
+
+  // Cria fila
+  dataQueue = xQueueCreate(QUEUE_LENGTH, sizeof(Sample_t));
+  if (dataQueue == NULL) {
+    Serial.println("Erro ao criar a fila!");
+    while (true);
+  }
+
+  // Cria tarefas
+  xTaskCreatePinnedToCore(taskSensor, "SensorTask", 4096, NULL, 2, NULL, 0);
+  xTaskCreatePinnedToCore(taskSD, "SDTask", 8192, NULL, 1, NULL, 1);
+
+  // Aguarda 10 s de gravação
+  Serial.println("Gravando dados por 10 segundos...");
+  delay(LOG_DURATION_MS);
+
+  // Para a gravação
+  stopLogging = true;
+  Serial.println("Parando gravação...");
+  delay(2000);  // Dá tempo das tarefas fecharem o arquivo
+
+  // === Leitura do arquivo ===
+  Serial.println("\n--- LENDO ARQUIVO /dados.csv ---");
+  File readFile = SD.open("/dados.csv", FILE_READ);
+  if (!readFile) {
+    Serial.println("Erro ao abrir arquivo para leitura!");
+    return;
+  }
+
+  while (readFile.available()) {
+    Serial.write(readFile.read());
+  }
+  readFile.close();
+
+  Serial.println("\n--- FIM DA LEITURA ---");
 }
 
-void loop(void)
-{
-  if (interrupt)
-  {
-    bno_read();
-    SD.begin();  
-    appendFile(SD, "/bno.txt", bnoState.dataMessage);
-    if( millis() - bnoState.start_time >= 10000) {
-      Serial.print( "Start time: ");    Serial.println( bnoState.start_time); 
-      Serial.print( "End time: ");      Serial.println( millis()); 
-      Serial.print( "Total time (s): ");Serial.println( (millis() - bnoState.start_time) / 1000.0); 
-      Serial.print( "Total samples: "); Serial.println( bnoState.count);      
-      Serial.println("end");
-      delay(50000);
-    }     
-  }
-  else
-  {
-    bno.resetInterrupts();
-    interrupt = false;
-  }
-}
-
-void interrupt_callback(void)
-{
-  interrupt = true;
-}
-
-void bno_setup(void)
-{
-  if (!bno.begin())
-  {
-    Serial.print("Ooops, no BNO055 detected ... Check your wiring or I2C ADDR!");
-    ESP.restart();
-  }
-  if (!bno.setAccRange(ACC_RANGE))
-  {
-    Serial.print("Ooops, changing Acc range seems to be refused!");
-  }
-  interrupt = false;
-  pinMode(INTERRUPT_PIN, INPUT);
-  attachInterrupt(digitalPinToInterrupt(INTERRUPT_PIN), interrupt_callback, RISING);
-  bno.enableAnyMotion(0, 0);
-  bno.enableInterruptsOnXYZ(ENABLE, ENABLE, ENABLE);
-  bno.setExtCrystalUse(true);
-}
-
-void bno_read(void)
-{
-  bnoState.acc = bno.getVector(Adafruit_BNO055::VECTOR_ACCELEROMETER);
-  bnoState.time = (millis()-bnoState.start_time)/1000.00;
-  bnoState.count++;
-  bnoState.ax = bnoState.acc.x();
-  bnoState.ay = bnoState.acc.y();
-  bnoState.az = bnoState.acc.z();
-#if FILTER_ORDER_EMA_FIRST
-  filterEMA(bnoState.ax, bnoState.ay, bnoState.az, EMA_ALPHA,
-            bnoState.axf, bnoState.ayf, bnoState.azf);
-
-  filterMedianN(bnoState.axf, bnoState.ayf, bnoState.azf,
-                bnoState.axff, bnoState.ayff, bnoState.azff);
-#else
-  filterMedianN(bnoState.ax, bnoState.ay, bnoState.az,
-                bnoState.axf, bnoState.ayf, bnoState.azf);
-
-  filterEMA(bnoState.axf, bnoState.ayf, bnoState.azf, EMA_ALPHA,
-            bnoState.axff, bnoState.ayff, bnoState.azff);
-#endif
-  //Serial.printf("%.2f,%.2f,%.2f\n", bnoState.axff, bnoState.ayff, bnoState.azff);
-  sprintf( bnoState.dataMessage, "%.3f,%.2f,%.2f,%.2f\n" , bnoState.time, bnoState.axff, bnoState.ayff, bnoState.azff);
+void loop() {
+  // Nada — FreeRTOS e setup fazem tudo
 }
