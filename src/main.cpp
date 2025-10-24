@@ -210,12 +210,12 @@ void testFileIO(fs::FS &fs, const char *path) {
 void setup() {
   Serial.begin(BAUD_RATE);
 
-#ifdef REASSIGN_PINS
-  SPI.begin(sck, miso, mosi, cs);
-  if (!SD.begin(cs)) {
-#else
-  if (!SD.begin()) {
-#endif
+  #ifdef REASSIGN_PINS
+    SPI.begin(sck, miso, mosi, cs);
+    if (!SD.begin(cs)) {
+  #else
+    if (!SD.begin()) {
+  #endif
     Serial.println("Card Mount Failed");
     return;
   }
@@ -238,22 +238,13 @@ void setup() {
   }
 
   uint64_t cardSize = SD.cardSize() / (1024 * 1024);
-  Serial.printf("SD Card Size: %lluMB\n", cardSize);
-
-  listDir(SD, "/", 0);
-  createDir(SD, "/mydir");
-  listDir(SD, "/", 0);
-  removeDir(SD, "/mydir");
-  listDir(SD, "/", 2);
-  writeFile(SD, "/hello.txt", "Hello ");
-  appendFile(SD, "/hello.txt", "World!\n");
-  readFile(SD, "/hello.txt");
-  deleteFile(SD, "/foo.txt");
-  renameFile(SD, "/hello.txt", "/foo.txt");
-  readFile(SD, "/foo.txt");
-  testFileIO(SD, "/test.txt");
+  Serial.printf("SD Card Size: %lluMB\n", cardSize);   
   Serial.printf("Total space: %lluMB\n", SD.totalBytes() / (1024 * 1024));
   Serial.printf("Used space: %lluMB\n", SD.usedBytes() / (1024 * 1024));
 }
 
-void loop() {}
+void loop() {
+  writeFile(SD, "/bno.txt", "Hello ");
+  appendFile(SD, "/bno.txt", "World!\n");
+  readFile(SD, "/bno.txt"); 
+}
