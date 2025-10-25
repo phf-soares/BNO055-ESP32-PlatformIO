@@ -34,28 +34,14 @@ bool done = false;
 void bno_setup(void);
 void bno_read(void);
 String getNewFileName();
+void sd_setup(void);
+void buffer_ToSD(void);
 
 void setup(void)
 {
   Serial.begin(BAUD_RATE);
-
   bno_setup();
-
-  if (!SD.begin(CS_PIN)) {
-    Serial.println("Falha ao iniciar SD!");
-    ESP.restart();
-  }
-  String filename = getNewFileName();
-  dataFile = SD.open(filename, FILE_WRITE);  
-  if (!dataFile) {
-    Serial.println("Erro ao abrir arquivo no SD!");
-    ESP.restart();
-  }
-  dataFile.print("INICIO:\n");
-  dataFile.print("Tempo em segundos, Aceleração em metros/segundo^2\n");
-  dataFile.print("Tempo, Acc X, Acc Y, Acc Z\n");
-  Serial.println("Inicialização concluída!");
-
+  sd_setup();
   bnoState.start_time = millis();
 }
 
@@ -64,27 +50,7 @@ void loop(void)
   if (!done && interrupt)
   {
     bno_read();
-    String sample = bnoState.dataMessage;
-
-    // Armazena no buffer
-    size_t len = sample.length();
-    if (bufferIndex + len >= BUFFER_SIZE) {
-      // buffer cheio → grava no SD
-      dataFile.write((uint8_t*)buffer, bufferIndex);
-      dataFile.flush();
-      bufferIndex = 0;  // zera para começar a encher de novo
-    }
-
-    // copia a amostra pro buffer
-    memcpy(&buffer[bufferIndex], sample.c_str(), len);
-    bufferIndex += len;
-
-    if( millis() - bnoState.start_time >= TOTAL_TIME) {
-      dataFile.flush();
-      dataFile.close();
-      done = true;
-      Serial.println("Dados coletados!"); //msg no futuro 
-    }     
+    buffer_ToSD();    
   }
   else
   {
@@ -154,3 +120,41 @@ String getNewFileName() {
   return name;
 }
 
+void sd_setup(void){
+  if (!SD.begin(CS_PIN)) {
+  Serial.println("Falha ao iniciar SD!");
+  ESP.restart();
+  }
+  String filename = getNewFileName();
+  dataFile = SD.open(filename, FILE_WRITE);  
+  if (!dataFile) {
+    Serial.println("Erro ao abrir arquivo no SD!");
+    ESP.restart();
+  }
+  dataFile.print("INICIO:\n");
+  dataFile.print("Tempo em segundos, Aceleração em metros/segundo^2\n");
+  dataFile.print("Tempo, Acc X, Acc Y, Acc Z\n");
+  Serial.println("Inicialização concluída!");
+}
+
+void buffer_ToSD(void) {
+    String sample = bnoState.dataMessage;
+    // Armazena no buffer
+    size_t len = sample.length();
+    if (bufferIndex + len >= BUFFER_SIZE) {
+      // buffer cheio → grava no SD
+      dataFile.write((uint8_t*)buffer, bufferIndex);
+      dataFile.flush();
+      bufferIndex = 0;  // zera para começar a encher de novo
+    }
+    // copia a amostra pro buffer
+    memcpy(&buffer[bufferIndex], sample.c_str(), len);
+    bufferIndex += len;
+
+    if( millis() - bnoState.start_time >= TOTAL_TIME) {
+      dataFile.flush();
+      dataFile.close();
+      done = true;
+      Serial.println("Dados coletados!"); //msg no futuro 
+    } 
+}
