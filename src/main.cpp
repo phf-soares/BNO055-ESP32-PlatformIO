@@ -5,7 +5,6 @@
 #include "MyBno_filters.h"
 #include "MyBno_config.h"
 #include <SD.h>
-#include <esp_sleep.h>
 
 const uint8_t INTERRUPT_PIN = 2; // GPIO do ESP32
 const uint8_t CS_PIN = 5;
@@ -30,9 +29,11 @@ File dataFile;
 
 void interrupt_callback(void);
 volatile bool interrupt;
+bool done = false;
 
 void bno_setup(void);
 void bno_read(void);
+String getNewFileName();
 
 void setup(void)
 {
@@ -42,14 +43,17 @@ void setup(void)
 
   if (!SD.begin(CS_PIN)) {
     Serial.println("Falha ao iniciar SD!");
-    while (1);
+    ESP.restart();
   }
-  dataFile = SD.open("/bno.txt", FILE_APPEND);
+  String filename = getNewFileName();
+  dataFile = SD.open(filename, FILE_WRITE);  
   if (!dataFile) {
     Serial.println("Erro ao abrir arquivo no SD!");
-    while (1);
+    ESP.restart();
   }
-  dataFile.print("INICIO:");
+  dataFile.print("INICIO:\n");
+  dataFile.print("Tempo em segundos, Aceleração em metros/segundo^2\n");
+  dataFile.print("Tempo, Acc X, Acc Y, Acc Z\n");
   Serial.println("Inicialização concluída!");
 
   bnoState.start_time = millis();
@@ -57,7 +61,7 @@ void setup(void)
 
 void loop(void)
 {
-  if (interrupt)
+  if (!done && interrupt)
   {
     bno_read();
     String sample = bnoState.dataMessage;
@@ -78,7 +82,8 @@ void loop(void)
     if( millis() - bnoState.start_time >= TOTAL_TIME) {
       dataFile.flush();
       dataFile.close();
-      esp_deep_sleep_start();     
+      done = true;
+      Serial.println("Dados coletados!"); //msg no futuro 
     }     
   }
   else
@@ -136,3 +141,16 @@ void bno_read(void)
   //Serial.printf("%.2f,%.2f,%.2f\n", bnoState.axff, bnoState.ayff, bnoState.azff);
   sprintf( bnoState.dataMessage, "%.3f,%.2f,%.2f,%.2f\n" , bnoState.time, bnoState.axff, bnoState.ayff, bnoState.azff);
 }
+
+// Gera nome de arquivo incremental
+String getNewFileName() {
+  int index = 1;
+  String name;
+  while (true) {
+    name = "/bno_" + String(index) + ".txt";
+    if (!SD.exists(name)) break;
+    index++;
+  }
+  return name;
+}
+
