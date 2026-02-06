@@ -4,6 +4,8 @@ Funcões:
 
 1) Biblioteca personalizada para demanda e configuração do BN055 pro projeto.
 
+   Baseado por: https://github.com/jubueche/Bosch-BNO055-NMAM-interrupt e https://github.com/TeamSunride/Arduino-BNO055
+
  - Implementação de filtros digitais direto na coleta com EMA e Mediana de N janelas.
  - Personalização na ordem dos filtros ou sem filtragem, juntamente com outras configurações do acelerômetro.
 
